@@ -1,0 +1,13 @@
+# build foler
+build
+cmake-build-*
+
+# clangd cached files
+.cache
+
+# vscode
+.vscode
+
+# IDEA
+.idea
+
