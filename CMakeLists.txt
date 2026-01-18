@@ -19,3 +19,10 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests tests/test_main.cpp)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain cli_parser)
+
+# Examples
+add_executable(basic_example examples/basic.cpp)
+target_link_libraries(basic_example PRIVATE cli_parser)
+
+add_executable(comprehensive_example examples/comprehensive.cpp)
+target_link_libraries(comprehensive_example PRIVATE cli_parser)
