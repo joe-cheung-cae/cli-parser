@@ -12,24 +12,30 @@
 
 namespace clipp {
 
+using SetterFunc = void (*)(void*, const std::string&);
+
 struct ArgumentBase {
     std::string short_name;
     std::string long_name;
     std::string description;
     bool required = false;
     bool parsed = false;
+    SetterFunc setter = nullptr;
     virtual ~ArgumentBase() = default;
-    virtual void set_value(const std::string& str) = 0;
+    void set_value(const std::string& str) {
+        if (setter) setter(this, str);
+    }
 };
 
 template<typename T>
 struct Argument : ArgumentBase {
     T value;
     T* default_value = nullptr;
-    void set_value(const std::string& str) override {
+    static void set_value_impl(void* self, const std::string& str) {
+        auto* arg = static_cast<Argument<T>*>(static_cast<ArgumentBase*>(self));
         validate_argument(str);
-        value = TypeConverter<T>::convert(str);
-        parsed = true;
+        arg->value = TypeConverter<T>::convert(str);
+        arg->parsed = true;
     }
 };
 
@@ -40,12 +46,14 @@ public:
 
     template<typename T>
     void add_option(const std::string& short_name, const std::string& long_name, const std::string& description, bool required = false, T* default_value = nullptr) {
+        static_assert(TypeConverter<T>::is_supported, "Type T is not supported for argument conversion");
         auto arg = std::make_unique<Argument<T>>();
         arg->short_name = short_name;
         arg->long_name = long_name;
         arg->description = description;
         arg->required = required;
         arg->default_value = default_value;
+        arg->setter = &Argument<T>::set_value_impl;
         if (default_value) arg->value = *default_value;
         arguments_.push_back(std::move(arg));
         ArgumentBase* ptr = arguments_.back().get();
@@ -61,18 +69,18 @@ public:
         // Parse options
         int i = 1; // skip program name
         while (i < argc) {
-            std::string_view arg = argv[i];
-            validate_argument(std::string(arg)); // basic validation
+            std::string arg = argv[i];
+            validate_argument(arg); // basic validation
             if (arg.size() > 1 && arg[0] == '-') {
                 std::string name;
                 if (arg[1] == '-') {
                     // long option
-                    std::string_view long_part = arg.substr(2);
-                    name = "--" + std::string(long_part);
+                    std::string long_part = arg.substr(2);
+                    name = "--" + long_part;
                 } else {
                     // short option
-                    std::string_view short_part = arg.substr(1);
-                    name = "-" + std::string(short_part);
+                    std::string short_part = arg.substr(1);
+                    name = "-" + short_part;
                 }
                 auto it = name_to_arg_.find(name);
                 if (it != name_to_arg_.end()) {
